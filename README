@@ -1,0 +1,48 @@
+This is a "plugin" for the Video Disk Recorder (VDR).
+
+Written by:                  Marc Wernecke < z u l u @ z u l u - e n t e r t a i n m e n t . d e >
+
+Project's homepage:          http://www.zulu-entertainment.de
+
+Latest version available at: http://www.zulu-entertainment.de
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+See the file COPYING for more information.
+
+
+Description:
+------------
+Channelblocker - A simple OSD to manage the channels for the channelblocker patch.
+
+The OSD shows a list of the current channels.
+It is possible to block channels seperatly with a black- or whitelist.
+There are 'Modes' like dvb-s, dvb-c, qam256, ... to play with
+and 'Filters' like: card- has decoder, is primary, ...  to adjust witch card(s) should block
+
+Requirements:
+-------------
+VDR >= 1.6.0 patched with
+  vdr-1.6.0-2_channelblocker.diff or 
+  vdr-1.7.2_channelblocker.diff
+  Extensions-Patch => 63 (and DVBSETUP activated)
+
+Installation:
+-------------
+Theres nothing special about it. Install it like any other standard
+plugin (unpack, soft link, make plugins).
+
+
+Usage:
+-----
+
+Ok                  save settings and exit
+Red       Block     block
+Green     Open      open
+Yellow    Toggle    toggle between 'blocked' and 'open'
+Blue      Patch     toggle patch mode
+Back                discharge settings and exit
+0                   switch to selected channel
+

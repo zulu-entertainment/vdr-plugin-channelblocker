@@ -1,0 +1,205 @@
+diff -ruNp vdr-1.7.2/config.c vdr-1.7.2-channelblocker/config.c
+--- vdr-1.7.2/config.c	2008-02-17 14:39:00.000000000 +0100
++++ vdr-1.7.2-channelblocker/config.c	2009-01-21 11:28:33.000000000 +0100
+@@ -260,6 +260,11 @@ cSetup::cSetup(void)
+   VideoFormat = 0;
+   UpdateChannels = 5;
+   UseDolbyDigital = 1;
++#ifdef USE_CHANNELBLOCKER
++  ChannelBlocker = 0;
++  ChannelBlockerMode = 0;
++  ChannelBlockerList = strdup("");
++#endif /* CHANNELBLOCKER */
+   ChannelInfoPos = 0;
+   ChannelInfoTime = 5;
+   OSDLeft = 54;
+@@ -291,9 +296,20 @@ cSetup::cSetup(void)
+   EmergencyExit = 1;
+ }
+ 
++#ifdef USE_CHANNELBLOCKER
++cSetup::~cSetup()
++{
++  free(ChannelBlockerList);
++}
++#endif /* CHANNELBLOCKER */
++
+ cSetup& cSetup::operator= (const cSetup &s)
+ {
+   memcpy(&__BeginData__, &s.__BeginData__, (char *)&s.__EndData__ - (char *)&s.__BeginData__);
++#ifdef USE_CHANNELBLOCKER
++  free(ChannelBlockerList);
++  ChannelBlockerList = strdup(s.ChannelBlockerList);
++#endif /* CHANNELBLOCKER */
+   return *this;
+ }
+ 
+@@ -433,6 +449,14 @@ bool cSetup::Parse(const char *Name, con
+   else if (!strcasecmp(Name, "VideoFormat"))         VideoFormat        = atoi(Value);
+   else if (!strcasecmp(Name, "UpdateChannels"))      UpdateChannels     = atoi(Value);
+   else if (!strcasecmp(Name, "UseDolbyDigital"))     UseDolbyDigital    = atoi(Value);
++#ifdef USE_CHANNELBLOCKER
++  else if (!strcasecmp(Name, "ChannelBlocker"))      ChannelBlocker     = atoi(Value);
++  else if (!strcasecmp(Name, "ChannelBlockerMode"))  ChannelBlockerMode = atoi(Value);
++  else if (!strcasecmp(Name, "ChannelBlockerList")) {
++     free(ChannelBlockerList);
++     ChannelBlockerList = strdup(Value ? Value : "");
++     }
++#endif /* CHANNELBLOCKER */
+   else if (!strcasecmp(Name, "ChannelInfoPos"))      ChannelInfoPos     = atoi(Value);
+   else if (!strcasecmp(Name, "ChannelInfoTime"))     ChannelInfoTime    = atoi(Value);
+   else if (!strcasecmp(Name, "OSDLeft"))             OSDLeft            = atoi(Value);
+@@ -516,6 +540,11 @@ bool cSetup::Save(void)
+   Store("VideoFormat",        VideoFormat);
+   Store("UpdateChannels",     UpdateChannels);
+   Store("UseDolbyDigital",    UseDolbyDigital);
++#ifdef USE_CHANNELBLOCKER
++  Store("ChannelBlocker",     ChannelBlocker);
++  Store("ChannelBlockerMode", ChannelBlockerMode);
++  Store("ChannelBlockerList", ChannelBlockerList);
++#endif /* CHANNELBLOCKER */
+   Store("ChannelInfoPos",     ChannelInfoPos);
+   Store("ChannelInfoTime",    ChannelInfoTime);
+   Store("OSDLeft",            OSDLeft);
+diff -ruNp vdr-1.7.2/config.h vdr-1.7.2-channelblocker/config.h
+--- vdr-1.7.2/config.h	2008-09-14 15:46:13.000000000 +0200
++++ vdr-1.7.2-channelblocker/config.h	2009-01-21 11:28:33.000000000 +0100
+@@ -241,6 +241,10 @@ public:
+   int VideoFormat;
+   int UpdateChannels;
+   int UseDolbyDigital;
++#ifdef USE_CHANNELBLOCKER
++  int ChannelBlocker;
++  int ChannelBlockerMode;
++#endif /* CHANNELBLOCKER */
+   int ChannelInfoPos;
+   int ChannelInfoTime;
+   int OSDLeft, OSDTop, OSDWidth, OSDHeight;
+@@ -267,7 +271,13 @@ public:
+   int InitialVolume;
+   int EmergencyExit;
+   int __EndData__;
++#ifdef USE_CHANNELBLOCKER
++  char *ChannelBlockerList;
++#endif /* CHANNELBLOCKER */
+   cSetup(void);
++#ifdef USE_CHANNELBLOCKER
++  ~cSetup();
++#endif /* CHANNELBLOCKER */
+   cSetup& operator= (const cSetup &s);
+   bool Load(const char *FileName);
+   bool Save(void);
+diff -ruNp vdr-1.7.2/dvbdevice.c vdr-1.7.2-channelblocker/dvbdevice.c
+--- vdr-1.7.2/dvbdevice.c	2008-12-13 15:38:07.000000000 +0100
++++ vdr-1.7.2-channelblocker/dvbdevice.c	2009-01-21 11:28:33.000000000 +0100
+@@ -834,6 +834,22 @@ bool cDvbDevice::ProvidesSource(int Sour
+ 
+ bool cDvbDevice::ProvidesTransponder(const cChannel *Channel) const
+ {
++#ifdef USE_CHANNELBLOCKER
++  if (Setup.ChannelBlocker != 0) {
++     if ((Setup.ChannelBlockerMode == 0) ||
++         (Setup.ChannelBlockerMode == 1 && HasDecoder()) ||
++         (Setup.ChannelBlockerMode == 2 && IsPrimaryDevice()) ||
++         (Setup.ChannelBlockerMode == 3 && IsPrimaryDevice() && HasDecoder())) {
++        if ((Setup.ChannelBlocker == 1 && cSource::IsCable(Channel->Source()) && Channel->Modulation() == QAM_256) ||
++            (Setup.ChannelBlocker == 2 && cSource::IsCable(Channel->Source())) ||
++            (Setup.ChannelBlocker == 3 && cSource::IsSat(Channel->Source())) ||
++            (Setup.ChannelBlocker == 4 && strstr(::Setup.ChannelBlockerList, Channel->GetChannelID().ToString()) != NULL) || // blacklist
++            (Setup.ChannelBlocker == 5 && strstr(::Setup.ChannelBlockerList, Channel->GetChannelID().ToString()) == NULL) || // whitelist
++            (Setup.ChannelBlocker == 6))
++           return false;
++        }
++     }
++#endif /* CHANNELBLOCKER */
+   if (!ProvidesSource(Channel->Source()))
+      return false; // doesn't provide source
+   if (!cSource::IsSat(Channel->Source()))
+@@ -845,6 +861,22 @@ bool cDvbDevice::ProvidesTransponder(con
+ 
+ bool cDvbDevice::ProvidesChannel(const cChannel *Channel, int Priority, bool *NeedsDetachReceivers) const
+ {
++#ifdef USE_CHANNELBLOCKER
++  if (Setup.ChannelBlocker != 0) {
++     if ((Setup.ChannelBlockerMode == 0) ||
++         (Setup.ChannelBlockerMode == 1 && HasDecoder()) ||
++         (Setup.ChannelBlockerMode == 2 && IsPrimaryDevice()) ||
++         (Setup.ChannelBlockerMode == 3 && IsPrimaryDevice() && HasDecoder())) {
++        if ((Setup.ChannelBlocker == 1 && cSource::IsCable(Channel->Source()) && Channel->Modulation() == QAM_256) ||
++            (Setup.ChannelBlocker == 2 && cSource::IsCable(Channel->Source())) ||
++            (Setup.ChannelBlocker == 3 && cSource::IsSat(Channel->Source())) ||
++            (Setup.ChannelBlocker == 4 && strstr(::Setup.ChannelBlockerList, Channel->GetChannelID().ToString()) != NULL) || // blacklist
++            (Setup.ChannelBlocker == 5 && strstr(::Setup.ChannelBlockerList, Channel->GetChannelID().ToString()) == NULL) || // whitelist
++            (Setup.ChannelBlocker == 6))
++           return false;
++        }
++     }
++#endif /* CHANNELBLOCKER */
+   bool result = false;
+   bool hasPriority = Priority < 0 || Priority > this->Priority();
+   bool needsDetachReceivers = false;
+diff -ruNp vdr-1.7.2/Make.config.template vdr-1.7.2-channelblocker/Make.config.template
+--- vdr-1.7.2/Make.config.template	2008-01-13 13:54:09.000000000 +0100
++++ vdr-1.7.2-channelblocker/Make.config.template	2009-01-21 11:28:33.000000000 +0100
+@@ -41,8 +41,14 @@ RCU_DEVICE  = /dev/ttyS1
+ ## Define if you want vdr to not run as root
+ #VDR_USER = vdr
+ 
++CHANNELBLOCKER = 1
++
+ ### You don't need to touch the following:
+ 
+ ifdef DVBDIR
+ INCLUDES += -I$(DVBDIR)/include
+ endif
++
++ifdef CHANNELBLOCKER
++DEFINES += -DUSE_CHANNELBLOCKER
++endif
+diff -ruNp vdr-1.7.2/menu.c vdr-1.7.2-channelblocker/menu.c
+--- vdr-1.7.2/menu.c	2008-11-22 16:18:00.000000000 +0100
++++ vdr-1.7.2-channelblocker/menu.c	2009-01-21 11:28:33.000000000 +0100
+@@ -2382,6 +2382,10 @@ eOSState cMenuSetupEPG::ProcessKey(eKeys
+ 
+ class cMenuSetupDVB : public cMenuSetupBase {
+ private:
++#ifdef USE_CHANNELBLOCKER
++  const char *ChannelBlockers[7];
++  const char *ChannelBlockerModes[4];
++#endif /* CHANNELBLOCKER */
+   int originalNumAudioLanguages;
+   int numAudioLanguages;
+   int originalNumSubtitleLanguages;
+@@ -2420,6 +2424,21 @@ void cMenuSetupDVB::Setup(void)
+ {
+   int current = Current();
+ 
++#ifdef USE_CHANNELBLOCKER
++  ChannelBlockers[0] = tr("none");
++  ChannelBlockers[1] = tr("qam256");
++  ChannelBlockers[2] = tr("dvb-c");
++  ChannelBlockers[3] = tr("dvb-s");
++  ChannelBlockers[4] = tr("blacklist");
++  ChannelBlockers[5] = tr("whitelist");
++  ChannelBlockers[6] = tr("all");
++
++  ChannelBlockerModes[0] = tr("none");
++  ChannelBlockerModes[1] = tr("has decoder");
++  ChannelBlockerModes[2] = tr("is primary");
++  ChannelBlockerModes[3] = tr("has decoder + is primary");
++#endif /* CHANNELBLOCKER */
++
+   Clear();
+ 
+   Add(new cMenuEditIntItem( tr("Setup.DVB$Primary DVB interface"), &data.PrimaryDVB, 1, cDevice::NumDevices()));
+@@ -2440,6 +2459,10 @@ void cMenuSetupDVB::Setup(void)
+      Add(new cMenuEditIntItem( tr("Setup.DVB$Subtitle foreground transparency"), &data.SubtitleFgTransparency, 0, 9));
+      Add(new cMenuEditIntItem( tr("Setup.DVB$Subtitle background transparency"), &data.SubtitleBgTransparency, 0, 10));
+      }
++#ifdef USE_CHANNELBLOCKER
++  Add(new cMenuEditStraItem(tr("Setup.DVB$Channel Blocker"),             &data.ChannelBlocker, 7, ChannelBlockers));
++  Add(new cMenuEditStraItem(tr("Setup.DVB$Channel Blocker Filter Mode"), &data.ChannelBlockerMode, 4, ChannelBlockerModes));
++#endif /* CHANNELBLOCKER */
+ 
+   SetCurrent(Get(current));
+   Display();

@@ -1,0 +1,32 @@
+VDR Plugin 'channelblocker' Revision History
+---------------------------------------
+2009-05-05: Version 0.0.6
+- Fixed some compiler warnings with gcc-4.3
+- New Makefile
+
+2009-02-13: Version 0.0.5
+- Now testing for DVB_API_VERSION < 5
+
+2009-01-21: Version 0.0.4
+- Fixed Bug 'Channel Blocker = all' can not select from
+  the plugins menu
+- Attach vdr-1.6.0-2_channelblocker.diff
+  and vdr-1.7.2_channelblocker.diff
+  After patching, you must activate the patch in VDRs Make.config
+  The patches changes Make.config.template
+  to show how this could be done.
+
+2009-01-08: Version 0.0.3
+- Updated for vdr-1.7.2
+
+2008-06-28: Version 0.0.2
+- Renamed plugin to 'channelblocker'
+- Change mainmenu-entry to 'Block Channels'
+- Added 'Setup Menu' to change plugin and patch setup
+  from the plugins osd (blue button)
+- Now 'Ok' save settings and exit
+  and 'Back'discharge settings and exit
+
+2008-06-05: Version 0.0.1
+- Initial revision.
+  Based on noepgmenu-0.0.6.beta2 from Christian Wieninger
